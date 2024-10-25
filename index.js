@@ -1,3 +1,10 @@
+import posthog from "posthog-js";
+
+posthog.init("phc_xTrjhBxVVZwabSOnMSSfAekguwyMni0l34mKIuJyXGY", {
+  api_host: "https://us.i.posthog.com",
+  person_profiles: "identified_only", // or 'always' to create profiles for anonymous users as well
+});
+
 // Add a specified delay in milliseconds
 const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
