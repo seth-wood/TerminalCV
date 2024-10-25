@@ -1,0 +1,39 @@
+##############################################################
+
+████████████████████████████████████████████████████████████
+████████████████████████  PROJECTS  ████████████████████████
+████████████████████████████████████████████████████████████
+
+#RECENT WORK:
+
++ KEEPER          
+* SIMON GAME 
+% WEATHER REPORT 
+@ MONDRIAN
+~ INTERACTIVE RESUME/PORTFOLIO (this site)
+
+#DETAILS:
+
++ A simplistic note-taking demonstration built with React. 
+    Parent/child props & components + state management.
+
+* Implementation of the classic 'Simon Game'. 
+    Utilizing simple JS functionality + media.
+
+% Backend project with API integration to OpenWeather 
+    showcasing post/get functionality with  interface.
+
+@ Piet Mondrian: Composition No III, with Red, Blue, 
+    Yellow, & Black. Created entirely with CSS + Grid.
+
+~ Terminal-inspired front-end project emulating 
+    retro communication and interactive portfolio. v1.
+
+
+##############################################################
+
+TYPE 'github' to access portfolio.
+
+
+
+
