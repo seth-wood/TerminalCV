@@ -58,8 +58,7 @@ Here’s how the terminal interface looks:
 Type `help` to see available commands.
 
 ## Contributors
-- **Seth Wood
+- Seth Wood
 
 ## License
 This project is licensed under the MIT License.
-```
