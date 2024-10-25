@@ -1,5 +1,3 @@
-
-
 // Add a specified delay in milliseconds
 const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
