@@ -1,8 +1,8 @@
 
-# Terminal CV
-<br />
 <img width="795" alt="Screenshot 2024-10-24 at 9 43 37 PM" src="https://github.com/user-attachments/assets/7543b65e-c9cd-43b1-8076-dd619af39219">
+
 ## Introduction
+
 This project simulates a retro-style terminal interface in a browser, complete with ASCII art and command prompt functionality. Users can navigate through options like Resume, Projects, and About sections by typing commands, providing an interactive experience.
 
 ## Table of Contents
