@@ -171,7 +171,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Command Prompt Functions
 function downloadResume() {
-  const URL = window.location.href + "/src/SethWood_wResume.pdf";
+  const URL = window.location.href + "/src/SethWood_Resume.pdf";
   window.open(URL, "_blank").focus();
 }
 
