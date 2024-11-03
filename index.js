@@ -84,7 +84,7 @@ function handleKeypress(e, input, output) {
     else if (e.key === "Backspace") {
       input.innerHTML = input.innerHTML.substring(
         0,
-        input.innerHTML.length - 1
+        input.innerHTML.length - 1,
       );
     } else if (ignoreKeys.includes(e.key)) {
       e.preventDefault();
@@ -159,7 +159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await wait(500);
   await writeText(
     instructions,
-    `Enter a command. Type 'help' for additional commands.`
+    `Enter a command. Type 'help' for additional commands.`,
   );
   prompt.prepend(">");
   cursor.innerHTML = "_";
