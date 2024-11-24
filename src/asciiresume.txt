@@ -11,15 +11,13 @@ Los Angeles, CA 90027
 
 SUMMARY
 ===========================================================
-I am a seasoned, high-performing technical sales 
-professional with 10 years experience, who is passionate 
-about software development and building exceptional customer 
-experiences. Recently completing a full-stack development 
-boot camp and expanding with cont'd education. 
 
-I believe my non-traditional background in sales gives me a 
-strategic advantage with collaboration and makes me a more 
-effective technical problem solver.
+Sales professional known for generating $2m+ in pipeline, 
+with customer obsession and fostering team-focused collaboration. 
+Strengths in relationship building, solution selling, and establishing 
+strong business value for diverse organizations. A creative thinker, 
+driven by iteration and a growth mindset capable of managing technical, 
+complex projects and tasks.
 
 
 SKILLS
@@ -34,45 +32,65 @@ EMPLOYMENT
 Remote, US
 
 ACCOUNT EXECUTIVE
-Managing full-cycle sales: sales tax automation software
-Achieved 82% annual ramping quota 2023 ($198k)
-Achieved 93% H1 quota 2024 ($284k)
-Led representation at events/trade shows with marketing
+Managed a full-cycle sales pipeline for sales tax compliance 
+software, achieving $198k ARR H2 2023 & $284k ARR H1 2024.
+Represented the company at major trade shows and industry events, 
+increasing brand visibility and on-site qualified leads by 23%; 
+fostering and expanded accounting partnerships for new business 
+development channels.
+Led weekly deal reviews and provided mentorship and development 
+to new hires.
+
 
 *STRIPE*			APR 2022 - JAN 2023
 Remote, US
 
-ASSOCIATE, PLATFORM PATERNSHIPS: STRIPE CONNECT APIs
-Led sales efforts with CTOs & Fintech leaders
-Achieved 600% ramping Q2, 148% Q3, and 130% Q4 quota
-Developed strategic account planning, partnering 
-cross-functionally
+OUTBOUND ASSOCIATE, PLATFORM PATERNSHIPS: STRIPE CONNECT APIs
+Created $2.75m+ net new pipeline for new business in the 
+US & Canada, resulting in a 600% ramping Q2, 148% Q3, 
+and 130% Q4 quota. 
+Developed and executed 7 strategic campaigns, 
+cross-functionally with marketing to track data-insights. 
+Created and led sales playbook for team new hires, improving 
+ramp times by 15%.
+
 
 *BETTER*			JUL 2020 - APR 2022
 Los Angeles, CA
 
 ACCOUNT EXECUTIVE
-Top 3% of US Mortgage Loan Originators, 2022. 
-Deployed full cycle sales pipeline covering 14 states
-$300m+ in loan volume closed, 2021.
-Attained 95%+ consistency in NPS with Amex customers.
+Attained 94%+ consistency in NPS managing high-touch, 
+white-glove VIP customers. 
+Nurtured hundreds of borrower relationships and loan 
+origination, leading to rank in the Scotsman’s Guide: 
+Top 3% of US Mortgage Loan Originators, 2022.
+Strengthened pipeline of 14 states with $300m+ in 
+loan volume closed in 2021. 
+
 
 *ENJOY TECHNOLOGY*		AUG 2017 - JUL 2020
 Los Angeles, CA
+Conducted 5-star field cross-selling & customer support 
+to over 1,500 Los Angeles customers with a 91% 
+average NPS rating.
+Led and facilitated daily standup meetings for over 
+40 team members.
+Moderated new-hire onboarding, influenced training agenda, 
+and provided daily mentorship to improve ramp times by 24%; 
+facilitating training and new market expansion of Nashville 
+and Las Vegas.
+Engineered in-house employee apps that improved efficiency 
+and reduced overtime by 30%.
 
-Sales & 5-star customer support to over 1,500 LA customers
-Led and facilitated daily team meetings for over 40 team members
-Moderated new-hire onboarding, training, & mentorship
-Facilitated ramping and expansion of 2 markets
 
 
 EDUCATION
 =============================================================
-App/Academy - Online Continued Ed.	
-App Brewery - Full Stack Web Development Bootcamp		
-
 MTSU - B.A. French & Business
 Université de Caen: Elementary French
+
+App/Academy - Online Continued Ed.	
+App Brewery - Full Stack Web Development Bootcamp		
 
 ##############################################################
 
