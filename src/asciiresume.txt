@@ -22,8 +22,8 @@ complex projects and tasks.
 
 SKILLS
 ============================================================
-+ Full Stack Web Development + React + Typescript + JavaScript 
-+ SQL + Postgres + French Language + SaaS + Creative Production
++ Full Stack Web Development + React + Typescript + SQL
++ Rust + C++ + French Language + SaaS + Creative Production
 
 
 EMPLOYMENT
@@ -33,54 +33,51 @@ Remote, US
 
 ACCOUNT EXECUTIVE
 Managed a full-cycle sales pipeline for sales tax compliance 
-software, achieving $198k ARR H2 2023 & $284k ARR H1 2024.
-Represented the company at major trade shows and industry events, 
-increasing brand visibility and on-site qualified leads by 23%; 
-fostering and expanded accounting partnerships for new business 
-development channels.
-Led weekly deal reviews and provided mentorship and development 
-to new hires.
+software, achieving $482K ARR within 12 months.
+Increased pipeline qualified leads by 13% through trade show 
+representation by driving brand visibility.
+Mentored a team of 7, improving closure rates by conducting 
+weekly deal reviews and providing actionable feedback.
 
 
 *STRIPE*			APR 2022 - JAN 2023
 Remote, US
 
-OUTBOUND ASSOCIATE, PLATFORM PATERNSHIPS: STRIPE CONNECT APIs
+OUTBOUND ASSOCIATE, PATERNSHIPS: CONNECT APIs
 Created $2.75m+ net new pipeline for new business in the 
-US & Canada, resulting in a 600% ramping Q2, 148% Q3, 
-and 130% Q4 quota. 
-Developed and executed 7 strategic campaigns, 
-cross-functionally with marketing to track data-insights. 
-Created and led sales playbook for team new hires, improving 
-ramp times by 15%.
+US & Canada, resulting in a 600% ramping Q2, 148% Q3, and
+130% Q4 quota. 
+Designed and implemented 5 strategic sales campaigns in 
+collaboration with marketing, resulting in data-driven 
+opportunity creation. 
+Authored a new-hire playbook that reduced onboarding time
+by 7%, improving team ramp-up efficiency.
 
 
 *BETTER*			JUL 2020 - APR 2022
 Los Angeles, CA
 
 ACCOUNT EXECUTIVE
-Attained 94%+ consistency in NPS managing high-touch, 
-white-glove VIP customers. 
-Nurtured hundreds of borrower relationships and loan 
-origination, leading to rank in the Scotsman’s Guide: 
-Top 3% of US Mortgage Loan Originators, 2022.
-Strengthened pipeline of 14 states with $300m+ in 
-loan volume closed in 2021. 
+Closed $300m+ in loan volume in 2021 by supporting customers
+across 14 states.
+Received the Scotsman Guide award for top 3% of 
+US Mortgage Loan Originators in 2021 by volume.
+Maintained a 94%+ NPS in customer satisfaction surveys, 
+by providing high-touch VIP customer management and 
+white-glove service.
 
 
 *ENJOY TECHNOLOGY*		AUG 2017 - JUL 2020
 Los Angeles, CA
-Conducted 5-star field cross-selling & customer support 
-to over 1,500 Los Angeles customers with a 91% 
-average NPS rating.
-Led and facilitated daily standup meetings for over 
-40 team members.
-Moderated new-hire onboarding, influenced training agenda, 
-and provided daily mentorship to improve ramp times by 24%; 
-facilitating training and new market expansion of Nashville 
-and Las Vegas.
-Engineered in-house employee apps that improved efficiency 
-and reduced overtime by 30%.
+
+Delivered field sales to over 1,500 customers with a 91% 
+average NPS, driving cross-sell opportunities and customer 
+retention through exceptional service delivery.
+Led and facilitated daily standup meetings for over 40 
+team members, ensuring alignment and focus on sales 
+objectives and customer satisfaction goals.
+Engineered in-house employee applications, reducing 
+overtime with task automation and improved workflow.
 
 
 
