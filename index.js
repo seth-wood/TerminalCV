@@ -1,209 +1,187 @@
-// Add a specified delay in milliseconds
+// Configuration Constants
+const CONFIG = {
+  URLS: {
+    RESUME: "/src/SethWoodResume.pdf",
+    GITHUB: "https://github.com/seth-wood",
+  },
+  PATHS: {
+    RESUME: "./src/asciiresume.txt",
+    ABOUT: "./src/about.txt",
+    PROJECTS: "./src/projects.txt",
+  },
+  ELEMENTS: {
+    ASCII_TEXT: "asciiText",
+    INSTRUCTIONS: "instructions",
+    PROMPT: "prompt",
+    CURSOR: "cursor",
+    INPUT: "command-input",
+    OUTPUT: "output",
+  },
+};
+
+const KEYBOARD_CONFIG = {
+  MODIFIERS: ["Meta", "Tab", "Shift", "Control", "Alt", "CapsLock"],
+  NAVIGATION: [
+    "ArrowUp",
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight",
+    "Home",
+    "End",
+    "PageUp",
+    "PageDown",
+  ],
+  SYSTEM: ["Escape", "Insert"],
+  FUNCTION: Array.from({ length: 12 }, (_, i) => `F${i + 1}`),
+};
+
+const COMMANDS = {
+  "": () => "\n",
+  1: () => printResume(),
+  2: () => printProjects(),
+  3: () => printAbout(),
+  clear: () => {
+    elements.ascii_text.style.display = "none";
+    elements.output.innerHTML = "";
+  },
+  download: () => downloadResume(),
+  github: () => visitGitHub(),
+  help: () => {
+    const helpText = [
+      "<commands>\n",
+      "Usage:\n",
+      "1           resume",
+      "2           projects",
+      "3           about me",
+      "download    resume in pdf",
+      "github      portfolio",
+      "help        this help text",
+      "clear       clear the screen\n\n",
+    ].join("\n");
+    return helpText;
+  },
+};
+
+// DOM Elements
+const elements = {};
+
+// Utility Functions
 const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Write text to a target element with a specified delay in ms
-function writeText(target, content, delay = 5) {
-  // Loop through array of content characters
-  return new Promise((resolve) => {
-    // Make an array of the specified content
-    const contentArray = content.split("");
+// Command Functions
+function downloadResume() {
+  const URL = window.location.href + CONFIG.URLS.RESUME;
+  window.open(URL, "_blank").focus();
+}
 
-    // Keep track of the character currently being written
+function visitGitHub() {
+  window.open(CONFIG.URLS.GITHUB, "_blank").focus();
+}
+
+function printResume() {
+  return fetchAndWrite(CONFIG.PATHS.RESUME, 2);
+}
+
+function printAbout() {
+  return fetchAndWrite(CONFIG.PATHS.ABOUT, 5);
+}
+
+function printProjects() {
+  return fetchAndWrite(CONFIG.PATHS.PROJECTS, 5);
+}
+
+// Helper Functions
+function fetchAndWrite(path, delay) {
+  return fetch(path)
+    .then((response) => response.text())
+    .then((data) => {
+      writeText(elements.output, data, delay);
+    })
+    .catch((error) => console.error("Error fetching the text file:", error));
+}
+
+function writeText(target, content, delay = 5) {
+  return new Promise((resolve) => {
+    const contentArray = content.split("");
     let current = 0;
 
     while (current < contentArray.length) {
       ((curr) => {
         setTimeout(() => {
           target.innerHTML += contentArray[curr];
-          // Scroll to the bottom of the screen unless scroll is false
           window.scrollTo(0, document.body.scrollHeight);
-
-          // Resolve the promise once the last character is written
           if (curr === contentArray.length - 1) resolve();
-        }, delay * curr); // increase delay with each iteration
+        }, delay * curr);
       })(current++);
     }
   });
 }
 
-// Handle keypress on the document, printing them to an
-// 'input' span. Input content will be interpreted as a
-// command and output will be written to an output element
+function execute(command) {
+  const cmd = command.toLowerCase();
+  const commandFn = COMMANDS[cmd];
+
+  if (commandFn) {
+    return commandFn();
+  }
+
+  return `Unknown command: ${command}\n Enter 'help' to see a list of commands.`;
+}
 
 function handleKeypress(e, input, output) {
-  // Check if a certain type of element has focus that we do not
-  // want to do keypress handling on (such as form inputs)
-
   function noInputHasFocus() {
     const elements = ["INPUT", "TEXTAREA", "BUTTON"];
     return elements.indexOf(document.activeElement.tagName) === -1;
   }
 
-  if (noInputHasFocus) {
-    // List keys to ignore
-    const ignoreKeys = [
-      "Meta",
-      "Tab",
-      "Shift",
-      "Control",
-      "Alt",
-      "CapsLock",
-      "Escape",
-      "ArrowUp",
-      "ArrowDown",
-      "ArrowLeft",
-      "ArrowRight",
-      "Home",
-      "End",
-      "PageUp",
-      "PageDown",
-      "Insert",
-      "F1",
-      "F2",
-      "F3",
-      "F4",
-      "F5",
-      "F6",
-      "F7",
-      "F8",
-      "F9",
-      "F10",
-      "F11",
-      "F12",
-    ];
+  if (!noInputHasFocus()) return;
 
-    // Enter clears the input and executes the command
-    if (e.key === "Enter") {
-      const command = input.innerText;
-      input.innerHTML = "";
-      // reprint the entered command
-      output.innerHTML += "<br><strong>" + command + "</strong>\n<br>";
-      writeText(output, execute(command)).catch((e) => console.error(e));
-    }
-    // Backspace causes last character to be erased
-    else if (e.key === "Backspace") {
-      input.innerHTML = input.innerHTML.substring(
-        0,
-        input.innerHTML.length - 1
-      );
-    } else if (ignoreKeys.includes(e.key)) {
-      e.preventDefault();
-    }
-    // For any other key, print the keystroke to the prompt
-    else input.insertAdjacentText("beforeend", e.key);
-  }
+  const ignoreKeys = [
+    ...KEYBOARD_CONFIG.MODIFIERS,
+    ...KEYBOARD_CONFIG.NAVIGATION,
+    ...KEYBOARD_CONFIG.SYSTEM,
+    ...KEYBOARD_CONFIG.FUNCTION,
+  ];
 
-  // Accept a command, execute it, and return any output
-  function execute(command) {
-    switch (command.toLowerCase()) {
-      case "":
-        return `\n`;
-
-      case "1":
-        printResume();
-        break;
-
-      case "2":
-        //todo create html hyperlinks
-        printProjects();
-        break;
-
-      case "3":
-        printAbout();
-        break;
-
-      case "clear":
-        asciiText.style.display = "none";
-        output.innerHTML = "";
-        break;
-
-      case "download":
-        downloadResume();
-        break;
-
-      case "github":
-        visitGitHub();
-        break;
-
-      case "help":
-        return `<commands>\n
-Usage:\n
-1           resume
-2           projects
-3           about me
-download    resume in pdf
-github      portfolio      
-help        this help text
-clear       clear the screen\n\n`;
-        break;
-
-      default:
-        return `Unknown command: ${command}\n Enter 'help' to see a list of commands.`;
-    }
+  if (e.key === "Enter") {
+    const command = input.innerText;
+    input.innerHTML = "";
+    output.innerHTML += "<br><strong>" + command + "</strong>\n<br>";
+    writeText(output, execute(command)).catch((e) => console.error(e));
+  } else if (e.key === "Backspace") {
+    input.innerHTML = input.innerHTML.substring(0, input.innerHTML.length - 1);
+  } else if (ignoreKeys.includes(e.key)) {
+    e.preventDefault();
+  } else {
+    input.insertAdjacentText("beforeend", e.key);
   }
 }
 
-// Execute page loading asynchronously once content has loaded
-document.addEventListener("DOMContentLoaded", async () => {
-  const asciiText = document.getElementById("asciiText");
-  // Store the content of asciiText, then empty it
-  const asciiArt = asciiText.innerText;
-  asciiText.innerHTML = "";
+// Main Init
+async function initializeTerminal() {
+  // Cache DOM elements
+  Object.keys(CONFIG.ELEMENTS).forEach((key) => {
+    elements[key.toLowerCase()] = document.getElementById(CONFIG.ELEMENTS[key]);
+  });
 
-  const instructions = document.getElementById("instructions");
-  const prompt = document.getElementById("prompt");
-  const cursor = document.getElementById("cursor");
+  const asciiArt = elements.ascii_text.innerText;
+  elements.ascii_text.innerHTML = "";
 
   await wait(1000);
-  await writeText(asciiText, asciiArt);
+  await writeText(elements.ascii_text, asciiArt);
   await wait(500);
   await writeText(
-    instructions,
+    elements.instructions,
     `Enter a command. Type 'help' for additional commands.`
   );
-  prompt.prepend(">");
-  cursor.innerHTML = "_";
 
-  const input = document.getElementById("command-input");
-  const output = document.getElementById("output");
-  document.addEventListener("keydown", (e) => handleKeypress(e, input, output));
-});
+  elements.prompt.prepend(">");
+  elements.cursor.innerHTML = "_";
 
-// Command Prompt Functions
-function downloadResume() {
-  const URL = window.location.href + "/src/SethWoodResume.pdf";
-  window.open(URL, "_blank").focus();
+  document.addEventListener("keydown", (e) =>
+    handleKeypress(e, elements.input, elements.output)
+  );
 }
 
-// Prints ASCII Resume
-function printResume() {
-  fetch("./src/asciiresume.txt")
-    .then((response) => response.text())
-    .then((data) => {
-      writeText(output, data, 2);
-    })
-    .catch((error) => console.error("Error fetching the text file:", error));
-}
-
-function printAbout() {
-  fetch("./src/about.txt")
-    .then((response) => response.text())
-    .then((data) => {
-      writeText(output, data, 5);
-    })
-    .catch((error) => console.error("Error fetching the text file:", error));
-}
-
-function printProjects() {
-  fetch("./src/projects.txt")
-    .then((response) => response.text())
-    .then((data) => {
-      writeText(output, data, 5);
-    })
-    .catch((error) => console.error("Error fetching the text file:", error));
-}
-
-function visitGitHub() {
-  const URL = "https://github.com/seth-wood";
-  window.open(URL, "_blank").focus();
-}
+// Initialize on DOM Content Loaded
+document.addEventListener("DOMContentLoaded", initializeTerminal);
