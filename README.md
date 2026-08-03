@@ -34,16 +34,27 @@ The project simulates a command-line interface. After loading the webpage, users
 
 ## File Structure
 The project consists of the following key files:
-- **index.html**: The main HTML file containing the structure of the terminal interface【7†source】.
-- **index.js**: The JavaScript file that handles user inputs, command execution, and output display【8†source】.
-- **style.css**: The CSS file that styles the terminal, including text colors, font, and animation effects【9†source】.
+- **src/engine/**: The terminal itself — a pure TypeScript module with no DOM and no React. It maps an input to a description of what should happen (`CommandResult`); the renderer performs the effect. Unit-tested with Vitest.
+- **components/Terminal.tsx**: The client shell — keyboard handling, the scrollback buffer, and the boot sequence.
+- **components/Typewriter.tsx**: A single `requestAnimationFrame` loop that reveals text by elapsed time, and the job queue that orders it. DOM-free by construction — the scheduler and scrolling are injected — so it is unit-tested in Node without jsdom.
+- **components/PostHogProvider.tsx**: Analytics init; renders nothing.
+- **src/content/**: Reads `content/splash.txt` at build time for server rendering — a missing splash is a build failure, not a 404.
+- **app/**: Next.js App Router entry points. `page.tsx` is a Server Component that passes the splash art to `<Terminal>`; `globals.css` styles the terminal.
+- **content/**: The splash art, inlined into the served HTML at build time.
+- **public/**: Static assets served as-is — the resume PDF, plus the resume, projects and about documents. These are fetched on demand when their command is typed, so they stay out of the served HTML rather than being inlined into every page load.
 
 ## Dependencies
-This project relies on:
-- No external libraries or frameworks are required.
+Next.js (App Router, `output: 'export'`), React, and TypeScript. `posthog-js` for analytics; Vitest for the engine tests.
 
 ## Configuration
-No special configuration is needed. Simply open the `index.html` file in a browser to start the terminal simulation.
+```bash
+npm install
+npm run dev     # http://localhost:3000
+npm run build     # static export to out/
+npm test          # engine + typewriter unit tests
+npm run lint
+npm run typecheck
+```
 
 ## Examples
 Here’s how the terminal interface looks:
