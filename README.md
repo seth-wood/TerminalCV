@@ -56,6 +56,22 @@ npm run lint
 npm run typecheck
 ```
 
+### Environment variables
+
+Optional analytics (PostHog). Both are public client-side values (`NEXT_PUBLIC_*`); omit them locally or for static export without analytics — PostHog simply will not initialize.
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `NEXT_PUBLIC_POSTHOG_KEY` | No | PostHog project API key. When unset, analytics is off. |
+| `NEXT_PUBLIC_POSTHOG_HOST` | No | PostHog API host. Defaults to `https://us.i.posthog.com`. |
+
+Example `.env.local`:
+
+```bash
+NEXT_PUBLIC_POSTHOG_KEY=phc_your_project_key
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+```
+
 ## Examples
 Here’s how the terminal interface looks:
 ```
