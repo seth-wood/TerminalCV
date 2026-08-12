@@ -129,6 +129,12 @@ export function createTerminalSession(
       },
     },
     { kind: 'type', text, delayMs, onReveal: revealInto },
+    {
+      kind: 'effect',
+      run: () => {
+        activeTextIndex = null;
+      },
+    },
   ];
 
   const startLoad = (id: ContentId) => {

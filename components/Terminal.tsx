@@ -76,6 +76,14 @@ export default function Terminal({ splash: initialSplash }: { splash: string }) 
   );
 
   const { enqueue, cancelAll } = useTypewriter();
+  const enqueueRef = useRef(enqueue);
+  const cancelAllRef = useRef(cancelAll);
+  const sessionRef = useRef<TerminalSession | null>(null);
+
+  useEffect(() => {
+    enqueueRef.current = enqueue;
+    cancelAllRef.current = cancelAll;
+  });
 
   // Server-rendered with the full splash so the page is meaningful before (and
   // without) JS, exactly as the static index.html was.
@@ -127,23 +135,31 @@ export default function Terminal({ splash: initialSplash }: { splash: string }) 
     );
   }, [initialSplash, enqueue]);
 
-  // Session + keydown only after boot, matching initializeTerminal.
+  // Session is created once when boot finishes so effect re-runs cannot
+  // discard in-memory fetch cache or diverge from React output state.
   useEffect(() => {
-    if (!booted) return;
+    if (!booted || sessionRef.current !== null) return;
 
-    const session: TerminalSession = createTerminalSession({
+    sessionRef.current = createTerminalSession({
       engine,
-      enqueue,
-      cancelAll,
+      enqueue: (...jobs) => enqueueRef.current(...jobs),
+      cancelAll: () => cancelAllRef.current(),
       fetchContent,
       openUrl: (url) => {
         window.open(url, '_blank')?.focus();
       },
       onChange: () => {
+        const session = sessionRef.current;
+        if (!session) return;
         setEntries(session.entries);
         setSplashHidden(session.splashHidden);
       },
     });
+  }, [booted, engine]);
+
+  // Keydown listener only after boot; reads the stable session ref.
+  useEffect(() => {
+    if (!booted) return;
 
     const handleKeydown = (e: KeyboardEvent) => {
       if (!noInputHasFocus()) return;
@@ -151,7 +167,7 @@ export default function Terminal({ splash: initialSplash }: { splash: string }) 
       if (e.key === 'Enter') {
         const command = inputRef.current;
         writeInput('');
-        session.submit(command);
+        sessionRef.current?.submit(command);
       } else if (e.key === 'Backspace') {
         writeInput(inputRef.current.slice(0, -1));
       } else if (IGNORE_KEYS.has(e.key)) {
@@ -163,7 +179,7 @@ export default function Terminal({ splash: initialSplash }: { splash: string }) 
 
     document.addEventListener('keydown', handleKeydown);
     return () => document.removeEventListener('keydown', handleKeydown);
-  }, [booted, engine, enqueue, cancelAll]);
+  }, [booted]);
 
   return (
     <>

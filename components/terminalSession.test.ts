@@ -11,11 +11,14 @@ import {
   type TerminalSession,
 } from './terminalSession';
 
+type HarnessOptions = {
+  openUrl?: (url: string) => void;
+};
+
 /**
  * Fake frame clock + injectable content loader, same spirit as Typewriter.test.
  */
-function harness() {
-  const scrolls: number[] = [];
+function harness(options: HarnessOptions = {}) {
   let pending: ((now: number) => void) | null = null;
   let nextHandle = 1;
 
@@ -30,7 +33,7 @@ function harness() {
     cancel: () => {
       pending = null;
     },
-    scroll: () => scrolls.push(1),
+    scroll: () => {},
   };
 
   const enqueue = (...jobs: Job[]) => {
@@ -58,6 +61,7 @@ function harness() {
 
   const fetchCalls: ContentId[] = [];
   const pendingById = new Map<ContentId, Deferred[]>();
+  const openedUrls: string[] = [];
 
   const fetchContent = (id: ContentId): Promise<string> => {
     fetchCalls.push(id);
@@ -88,7 +92,6 @@ function harness() {
     deferred.reject(err);
   };
 
-  let changeCount = 0;
   const session: TerminalSession = createTerminalSession({
     engine: new TerminalEngine({
       githubUrl: 'https://github.com/example',
@@ -97,17 +100,18 @@ function harness() {
     enqueue,
     cancelAll,
     fetchContent,
-    openUrl: () => {},
-    onChange: () => {
-      changeCount += 1;
+    openUrl: (url) => {
+      openedUrls.push(url);
+      options.openUrl?.(url);
     },
+    onChange: () => {},
   });
 
   return {
     session,
     state,
     fetchCalls,
-    changeCount: () => changeCount,
+    openedUrls,
     resolveFetch,
     rejectFetch,
     hasFrame: () => pending !== null,
@@ -129,7 +133,10 @@ function harness() {
   };
 }
 
-/** Drain promise reactions (then/catch/finally) so fetch handlers settle. */
+/**
+ * Fetch handlers chain then/catch/finally; one microtask tick is not always
+ * enough for `inFlight` cleanup before a retry can start a new load.
+ */
 async function flush() {
   for (let i = 0; i < 5; i++) await Promise.resolve();
 }
@@ -150,6 +157,20 @@ describe('clear during type', () => {
     expect(h.session.entries).toEqual([]);
     expect(h.session.splashHidden).toBe(true);
     expect(h.hasFrame()).toBe(false);
+  });
+
+  it('drops a pending content gate and clears entries', () => {
+    const h = harness();
+
+    h.session.submit('1');
+    expect(h.fetchCalls).toEqual(['resume']);
+    expect(h.state.queue.some((job) => job.kind === 'gate')).toBe(true);
+
+    h.session.submit('clear');
+
+    expect(h.state.queue).toHaveLength(0);
+    expect(h.session.entries).toEqual([]);
+    expect(h.session.splashHidden).toBe(true);
   });
 });
 
@@ -185,8 +206,50 @@ describe('fetch fail then retry', () => {
   });
 });
 
+describe('content cache', () => {
+  it('reuses a successful load without refetching', async () => {
+    const h = harness();
+
+    h.session.submit('1');
+    h.resolveFetch('resume', 'CACHED\n');
+    await flush();
+    h.drain();
+
+    h.session.submit('1');
+    expect(h.fetchCalls).toEqual(['resume']);
+    h.drain();
+
+    const texts = h.session.entries
+      .filter((e) => e.kind === 'text')
+      .map((e) => (e.kind === 'text' ? e.text : ''));
+    expect(texts.filter((text) => text === 'CACHED\n')).toHaveLength(2);
+  });
+
+  it('shares one in-flight fetch across duplicate content commands', async () => {
+    const h = harness();
+
+    h.session.submit('1');
+    h.session.submit('1');
+    expect(h.fetchCalls).toEqual(['resume']);
+
+    h.resolveFetch('resume', 'SHARED\n');
+    await flush();
+    h.drain();
+
+    const echoes = h.session.entries
+      .filter((e) => e.kind === 'echo')
+      .map((e) => (e.kind === 'echo' ? e.command : ''));
+    expect(echoes).toEqual(['1', '1']);
+
+    const texts = h.session.entries
+      .filter((e) => e.kind === 'text')
+      .map((e) => (e.kind === 'text' ? e.text : ''));
+    expect(texts.filter((text) => text === 'SHARED\n')).toHaveLength(2);
+  });
+});
+
 describe('gate ordering', () => {
-  it('does not render a later command before a gated content load completes', async () => {
+  it('holds a later command (echo and text) until gated content finishes loading', async () => {
     const h = harness();
 
     h.session.submit('1');
@@ -194,7 +257,7 @@ describe('gate ordering', () => {
 
     h.tick(0);
     h.tick(16);
-    // Gate still pending; help must not have typed yet.
+    // Gate still pending; help must not echo or type yet.
     const earlyText = h.session.entries
       .filter((e) => e.kind === 'text')
       .map((e) => (e.kind === 'text' ? e.text : ''));
@@ -215,5 +278,21 @@ describe('gate ordering', () => {
       .map((e) => (e.kind === 'text' ? e.text : ''));
     expect(texts[0]).toBe('SLOW CONTENT\n');
     expect(texts[1]).toBe(HELP_TEXT);
+  });
+});
+
+describe('openUrl', () => {
+  it('opens the URL immediately and does not queue typed output', () => {
+    const h = harness();
+
+    h.session.submit('github');
+    expect(h.openedUrls).toEqual(['https://github.com/example']);
+    // Echo is still queued, but no text/gate jobs follow.
+    expect(h.state.queue).toHaveLength(1);
+    expect(h.state.queue[0]?.kind).toBe('effect');
+
+    h.tick(0);
+    expect(h.session.entries).toEqual([{ kind: 'echo', command: 'github' }]);
+    expect(h.state.queue).toHaveLength(0);
   });
 });
