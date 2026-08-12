@@ -1,6 +1,12 @@
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(import.meta.dirname),
+    },
+  },
   test: {
     // The engine and the animation queue are both DOM-free by construction, so
     // they run in node — no jsdom needed.
