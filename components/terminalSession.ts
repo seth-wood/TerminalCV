@@ -2,6 +2,7 @@ import { DELAYS } from '@/src/engine/commands';
 import type { TerminalEngine } from '@/src/engine/engine';
 import type { ContentId } from '@/src/engine/types';
 
+import { applyCommandResult } from './applyCommandResult';
 import type { Job } from './Typewriter';
 
 export const LOAD_ERROR_TEXT =
@@ -41,70 +42,6 @@ export function createTerminalSession(
   const inFlight = new Set<ContentId>();
   /** Index of the text entry currently being typed into, or null. */
   let activeTextIndex: number | null = null;
-
-  const session: TerminalSession = {
-    entries: [],
-    splashHidden: false,
-    submit(command: string) {
-      const result = deps.engine.submit(command);
-
-      if (result.kind === 'clear') {
-        // Immediate: the echo never reaches the screen and pending output drops.
-        deps.cancelAll();
-        session.splashHidden = true;
-        session.entries = [];
-        activeTextIndex = null;
-        deps.onChange();
-        return;
-      }
-
-      deps.enqueue({
-        kind: 'effect',
-        run: () => {
-          session.entries = [
-            ...session.entries,
-            { kind: 'echo', command },
-          ];
-          deps.onChange();
-        },
-      });
-
-      switch (result.kind) {
-        case 'text':
-          deps.enqueue(...typeJobs(result.text, result.delayMs));
-          break;
-
-        case 'content': {
-          const { id, delayMs } = result;
-          startLoad(id);
-          // Gated rather than awaited, so a command typed behind this one
-          // still renders after it instead of racing the fetch.
-          deps.enqueue({
-            kind: 'gate',
-            ready: () => {
-              const entry = loaded[id];
-              if (!entry) return null;
-              if (!entry.ok) {
-                delete loaded[id];
-                return typeJobs(LOAD_ERROR_TEXT, DELAYS.default);
-              }
-              return typeJobs(entry.text, delayMs);
-            },
-          });
-          break;
-        }
-
-        case 'openUrl':
-          deps.openUrl(result.url);
-          break;
-
-        default: {
-          const exhaustive: never = result;
-          throw new Error(`Unhandled result: ${JSON.stringify(exhaustive)}`);
-        }
-      }
-    },
-  };
 
   const revealInto = (revealed: string) => {
     if (activeTextIndex === null) return;
@@ -151,6 +88,50 @@ export function createTerminalSession(
         loaded[id] = { ok: false };
       })
       .finally(() => inFlight.delete(id));
+  };
+
+  const session: TerminalSession = {
+    entries: [],
+    splashHidden: false,
+    submit(command: string) {
+      const result = deps.engine.submit(command);
+
+      applyCommandResult(result, {
+        command,
+        enqueue: deps.enqueue,
+        cancelAll: deps.cancelAll,
+        openUrl: deps.openUrl,
+        clearScreen: () => {
+          session.splashHidden = true;
+          session.entries = [];
+          activeTextIndex = null;
+          deps.onChange();
+        },
+        echoCommand: () => {
+          deps.enqueue({
+            kind: 'effect',
+            run: () => {
+              session.entries = [
+                ...session.entries,
+                { kind: 'echo', command },
+              ];
+              deps.onChange();
+            },
+          });
+        },
+        typeJobs,
+        startLoad,
+        contentReady: (id, delayMs) => {
+          const entry = loaded[id];
+          if (!entry) return null;
+          if (!entry.ok) {
+            delete loaded[id];
+            return typeJobs(LOAD_ERROR_TEXT, DELAYS.default);
+          }
+          return typeJobs(entry.text, delayMs);
+        },
+      });
+    },
   };
 
   return session;
