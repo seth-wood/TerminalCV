@@ -1,4 +1,4 @@
-import { DELAYS } from '@/src/engine/commands';
+import { DEFAULT_TYPE_DELAY_MS } from '@/src/engine/timing';
 import type { TerminalEngine } from '@/src/engine/engine';
 import type { ContentId } from '@/src/engine/types';
 
@@ -126,7 +126,7 @@ export function createTerminalSession(
           if (!entry) return null;
           if (!entry.ok) {
             delete loaded[id];
-            return typeJobs(LOAD_ERROR_TEXT, DELAYS.default);
+            return typeJobs(LOAD_ERROR_TEXT, DEFAULT_TYPE_DELAY_MS);
           }
           return typeJobs(entry.text, delayMs);
         },

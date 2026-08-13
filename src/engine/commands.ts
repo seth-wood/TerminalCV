@@ -1,4 +1,5 @@
 import type { CommandResult, EngineDeps } from './types';
+import { DELAYS } from './timing';
 
 export const HELP_TEXT = [
   '<commands>\n',
@@ -11,15 +12,6 @@ export const HELP_TEXT = [
   'help        this help text',
   'clear       clear the screen\n\n',
 ].join('\n');
-
-/** Per-command typewriter delays, preserved verbatim from index.js. */
-export const DELAYS = {
-  resume: 2,
-  projects: 5,
-  about: 5,
-  /** writeText's default, used for help / empty / unknown / the boot sequence. */
-  default: 5,
-} as const;
 
 type CommandFn = (deps: EngineDeps) => CommandResult;
 

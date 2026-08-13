@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import { DELAYS } from '@/src/engine/commands';
+import { DEFAULT_TYPE_DELAY_MS } from '@/src/engine/timing';
 import { TerminalEngine } from '@/src/engine/engine';
 import type { ContentId } from '@/src/engine/types';
 
@@ -142,14 +142,14 @@ export function useTerminalSession({
       {
         kind: 'type',
         text: initialSplash,
-        delayMs: DELAYS.default,
+        delayMs: DEFAULT_TYPE_DELAY_MS,
         onReveal: setSplash,
       },
       { kind: 'wait', ms: INSTRUCTIONS_DELAY_MS },
       {
         kind: 'type',
         text: INSTRUCTIONS_TEXT,
-        delayMs: DELAYS.default,
+        delayMs: DEFAULT_TYPE_DELAY_MS,
         onReveal: setInstructions,
       },
       { kind: 'effect', run: () => setBooted(true) },
