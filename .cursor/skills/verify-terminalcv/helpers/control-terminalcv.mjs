@@ -44,6 +44,60 @@ const SELECTORS = {
   computerRequired: '#computer-required',
 };
 
+const EMULATE_PRESETS = {
+  mobile: {
+    viewport: { width: 390, height: 844 },
+    userAgent:
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+    platform: 'iPhone',
+    userAgentMetadata: {
+      brands: [{ brand: 'Chromium', version: '120' }],
+      fullVersionList: [{ brand: 'Chromium', version: '120.0.6099.0' }],
+      platform: 'iOS',
+      platformVersion: '17.0.0',
+      architecture: '',
+      model: 'iPhone',
+      mobile: true,
+      bitness: '',
+      wow64: false,
+    },
+  },
+  desktop: {
+    viewport: { width: 1100, height: 900 },
+    userAgent:
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    platform: 'Linux',
+    userAgentMetadata: {
+      brands: [{ brand: 'Chromium', version: '120' }],
+      fullVersionList: [{ brand: 'Chromium', version: '120.0.6099.0' }],
+      platform: 'Linux',
+      platformVersion: '',
+      architecture: 'x86',
+      model: '',
+      mobile: false,
+      bitness: '64',
+      wow64: false,
+    },
+  },
+};
+
+async function applyUserAgent(page, preset) {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send('Emulation.setUserAgentOverride', {
+      userAgent: preset.userAgent,
+      platform: preset.platform,
+      userAgentMetadata: preset.userAgentMetadata,
+    });
+  } catch {
+    await cdp.send('Emulation.setUserAgentOverride', {
+      userAgent: preset.userAgent,
+      platform: preset.platform,
+    });
+  }
+  return cdp;
+}
+
 function usage(exitCode = 1) {
   const text = `Usage:
   control-terminalcv launch [--port <n>] [--repo <path>]
@@ -153,10 +207,25 @@ async function withPage(fn) {
     if (!page.url().startsWith(state.url)) {
       await page.goto(state.url, { waitUntil: 'domcontentloaded' });
     }
+    await restoreEmulation(page, state);
     return await fn(page, state, browser);
   } finally {
     // connectOverCDP close disconnects this client and leaves Chrome running.
     await browser.close().catch(() => {});
+  }
+}
+
+async function restoreEmulation(page, state) {
+  const presetName = state.emulatePreset;
+  if (!presetName || !EMULATE_PRESETS[presetName]) return;
+  const preset = EMULATE_PRESETS[presetName];
+  await page.setViewportSize(preset.viewport);
+  await applyUserAgent(page, preset);
+  const wantGate = presetName === 'mobile';
+  const gateCount = await page.locator(SELECTORS.computerRequired).count();
+  if (wantGate !== (gateCount === 1)) {
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await applyUserAgent(page, preset);
   }
 }
 
@@ -364,9 +433,17 @@ async function cmdDoctor(argv) {
           report.issues.push(`unexpected title: ${report.title}`);
           report.ok = false;
         }
-        const cursor = (await page.locator(SELECTORS.cursor).textContent()) ?? '';
-        const prompt = (await page.locator(SELECTORS.prompt).textContent()) ?? '';
-        report.booted = cursor.includes('_') && prompt.includes('>');
+        const cursorCount = await page.locator(SELECTORS.cursor).count();
+        const promptCount = await page.locator(SELECTORS.prompt).count();
+        if (cursorCount && promptCount) {
+          const cursor =
+            (await page.locator(SELECTORS.cursor).textContent({ timeout: 0 })) ??
+            '';
+          const prompt =
+            (await page.locator(SELECTORS.prompt).textContent({ timeout: 0 })) ??
+            '';
+          report.booted = cursor.includes('_') && prompt.includes('>');
+        }
       });
     } catch (err) {
       report.issues.push(
@@ -384,17 +461,30 @@ async function waitBoot(page, timeoutMs) {
   const start = Date.now();
   const expected =
     "Enter a command. Type 'help' for additional commands.";
+  const noWait = { timeout: 0 };
   while (Date.now() - start < timeoutMs) {
-    const cursor = (await page.locator(SELECTORS.cursor).textContent()) ?? '';
-    const instructions =
-      (await page.locator(SELECTORS.instructions).textContent()) ?? '';
-    const prompt = (await page.locator(SELECTORS.prompt).textContent()) ?? '';
-    if (
-      cursor.includes('_') &&
-      prompt.includes('>') &&
-      instructions === expected
-    ) {
-      return;
+    const cursorCount = await page.locator(SELECTORS.cursor).count();
+    const promptCount = await page.locator(SELECTORS.prompt).count();
+    const instructionsCount = await page.locator(SELECTORS.instructions).count();
+    if (cursorCount && promptCount && instructionsCount) {
+      const cursor =
+        (await page.locator(SELECTORS.cursor).textContent(noWait).catch(() => '')) ??
+        '';
+      const instructions =
+        (await page
+          .locator(SELECTORS.instructions)
+          .textContent(noWait)
+          .catch(() => '')) ?? '';
+      const prompt =
+        (await page.locator(SELECTORS.prompt).textContent(noWait).catch(() => '')) ??
+        '';
+      if (
+        cursor.includes('_') &&
+        prompt.includes('>') &&
+        instructions === expected
+      ) {
+        return;
+      }
     }
     await sleep(100);
   }
@@ -438,23 +528,6 @@ async function cmdWaitGate(argv) {
   process.stdout.write(JSON.stringify({ ok: true, gated: true }) + '\n');
 }
 
-const EMULATE_PRESETS = {
-  mobile: {
-    viewport: { width: 390, height: 844 },
-    features: [
-      { name: 'hover', value: 'none' },
-      { name: 'pointer', value: 'coarse' },
-    ],
-  },
-  desktop: {
-    viewport: { width: 1100, height: 900 },
-    features: [
-      { name: 'hover', value: 'hover' },
-      { name: 'pointer', value: 'fine' },
-    ],
-  },
-};
-
 async function cmdEmulate(argv) {
   const preset = argsAfter('--preset', argv);
   if (!preset || !EMULATE_PRESETS[preset]) {
@@ -462,18 +535,10 @@ async function cmdEmulate(argv) {
       `Missing or invalid --preset. Use: ${Object.keys(EMULATE_PRESETS).join(', ')}`,
     );
   }
-  const { viewport, features } = EMULATE_PRESETS[preset];
-  await withPage(async (page, state) => {
-    const cdp = await page.context().newCDPSession(page);
-    await page.setViewportSize(viewport);
-    await cdp.send('Emulation.setEmulatedMedia', { features });
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    if (!page.url().startsWith(state.url)) {
-      await page.goto(state.url, { waitUntil: 'domcontentloaded' });
-    }
-    // Navigation resets emulated media; apply again so matchMedia matches the preset.
-    await cdp.send('Emulation.setEmulatedMedia', { features });
-  });
+  const state = await readState();
+  state.emulatePreset = preset;
+  await writeState(state);
+  await withPage(async () => {});
   process.stdout.write(JSON.stringify({ ok: true, preset }) + '\n');
 }
 

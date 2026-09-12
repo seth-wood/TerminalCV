@@ -1,66 +1,58 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { readSurface, subscribeSurface } from './surface';
+import { readSurface, type NavigatorSurfaceInput } from './surface';
 
-function fakeMatchMedia(initialMatches: boolean) {
-  let matches = initialMatches;
-  const listeners = new Set<EventListener>();
-  const matchMedia = (query: string) => {
-    void query;
-    return {
-      get matches() {
-        return matches;
-      },
-      media: '',
-      onchange: null,
-      addEventListener: (
-        _: string,
-        handler: EventListenerOrEventListenerObject,
-      ) => {
-        if (typeof handler === 'function') listeners.add(handler);
-      },
-      removeEventListener: (
-        _: string,
-        handler: EventListenerOrEventListenerObject,
-      ) => {
-        if (typeof handler === 'function') listeners.delete(handler);
-      },
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => true,
-    } as MediaQueryList;
-  };
-  return {
-    matchMedia,
-    setMatches(value: boolean) {
-      matches = value;
-    },
-    dispatch() {
-      const event = new Event('change');
-      for (const handler of listeners) handler(event);
-    },
-  };
-}
+const desktopChrome: NavigatorSurfaceInput = {
+  userAgent:
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  maxTouchPoints: 0,
+  userAgentDataMobile: false,
+};
+
+const iphone: NavigatorSurfaceInput = {
+  userAgent:
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  maxTouchPoints: 5,
+  userAgentDataMobile: true,
+};
+
+const ipadOs: NavigatorSurfaceInput = {
+  userAgent:
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+  maxTouchPoints: 5,
+  userAgentDataMobile: undefined,
+};
+
+const windowsTouchLaptop: NavigatorSurfaceInput = {
+  userAgent:
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  maxTouchPoints: 10,
+  userAgentDataMobile: false,
+};
 
 describe('readSurface', () => {
-  it('returns terminal when hover and fine pointer match', () => {
-    const { matchMedia } = fakeMatchMedia(true);
-    expect(readSurface(matchMedia)).toBe('terminal');
+  it('returns terminal for desktop Chrome', () => {
+    expect(readSurface(desktopChrome)).toBe('terminal');
   });
 
-  it('returns computerRequired when hover and fine pointer do not match', () => {
-    const { matchMedia } = fakeMatchMedia(false);
-    expect(readSurface(matchMedia)).toBe('computerRequired');
+  it('returns computerRequired for iPhone', () => {
+    expect(readSurface(iphone)).toBe('computerRequired');
   });
-});
 
-describe('subscribeSurface', () => {
-  it('calls onChange when the query changes', () => {
-    const fake = fakeMatchMedia(true);
-    const onChange = vi.fn();
-    subscribeSurface(fake.matchMedia, onChange);
-    fake.setMatches(false);
-    fake.dispatch();
-    expect(onChange).toHaveBeenCalledWith('computerRequired');
+  it('returns computerRequired for iPadOS Macintosh plus touch points', () => {
+    expect(readSurface(ipadOs)).toBe('computerRequired');
+  });
+
+  it('returns terminal for a Windows touch laptop', () => {
+    expect(readSurface(windowsTouchLaptop)).toBe('terminal');
+  });
+
+  it('returns computerRequired when Client Hints say mobile', () => {
+    expect(
+      readSurface({
+        ...desktopChrome,
+        userAgentDataMobile: true,
+      }),
+    ).toBe('computerRequired');
   });
 });

@@ -4,27 +4,23 @@ import { useSyncExternalStore } from 'react';
 
 import {
   COMPUTER_REQUIRED_MESSAGE,
+  readNavigatorSurfaceInput,
   readSurface,
-  subscribeSurface,
   type Surface,
 } from '@/src/surface';
 
 import Terminal from './Terminal';
 
-function getMatchMedia() {
-  return window.matchMedia.bind(window);
-}
-
-function subscribe(onStoreChange: () => void) {
-  return subscribeSurface(getMatchMedia(), () => onStoreChange());
-}
-
 function getSnapshot(): Surface {
-  return readSurface(getMatchMedia());
+  return readSurface(readNavigatorSurfaceInput(navigator));
 }
 
 function getServerSnapshot(): Surface {
   return 'terminal';
+}
+
+function subscribe() {
+  return () => {};
 }
 
 export default function ComputerGate({ splash }: { splash: string }) {
