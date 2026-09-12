@@ -5,7 +5,7 @@ description: "Drive the terminalcv browser résumé (Next.js static CRT terminal
 
 # Verify terminalcv
 
-`terminalcv` is a single-page, client-side Next.js App Router site (`output: 'export'`). On a computer the user faces a retro terminal that accepts keyboard commands after a typewriter boot sequence. On a phone or tablet they see `Please use a computer.` instead. There is no backend, auth, or database. Unit tests (Vitest) are DOM-free and do **not** replace this skill — UI proof must drive a real browser.
+`terminalcv` is a single-page, client-side Next.js App Router site (`output: 'export'`). On a computer the user faces a retro terminal that accepts keyboard commands after a typewriter boot sequence. On a phone or tablet they see `Not mobile optimized. Please use a computer.` instead. There is no backend, auth, or database. Unit tests (Vitest) are DOM-free and do **not** replace this skill — UI proof must drive a real browser.
 
 ## Launch
 
@@ -67,7 +67,7 @@ Harness: `control-terminalcv` (Playwright-core over Chrome CDP). The app has **n
 | `#prompt` | `>` once booted |
 | `#command-input` | Live command buffer (not a form field) |
 | `#cursor` | Blinking `_` once booted |
-| `#computer-required` | Mobile gate message (`Please use a computer.`) when the visitor is a phone or tablet |
+| `#computer-required` | Mobile gate message (`Not mobile optimized. Please use a computer.`) when the visitor is a phone or tablet |
 
 Recipe:
 

@@ -1,6 +1,7 @@
 export type Surface = 'terminal' | 'computerRequired';
 
-export const COMPUTER_REQUIRED_MESSAGE = 'Please use a computer.';
+export const COMPUTER_REQUIRED_MESSAGE =
+  'Not mobile optimized. Please use a computer.';
 
 export type NavigatorSurfaceInput = {
   readonly userAgent: string;

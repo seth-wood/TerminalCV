@@ -73,3 +73,13 @@ pre {
 .blink {
   animation: blink 0.4s linear infinite;
 }
+
+#computer-required {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  text-align: center;
+}

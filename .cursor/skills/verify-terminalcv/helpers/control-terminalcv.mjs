@@ -510,7 +510,7 @@ async function waitGate(page, timeoutMs) {
     if (gateCount === 1 && promptCount === 0 && cursorCount === 0) {
       const text =
         (await page.locator(SELECTORS.computerRequired).textContent()) ?? '';
-      if (text === 'Please use a computer.') {
+      if (text === 'Not mobile optimized. Please use a computer.') {
         return;
       }
     }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { readSurface, type NavigatorSurfaceInput } from './surface';
+import {
+  COMPUTER_REQUIRED_MESSAGE,
+  readSurface,
+  type NavigatorSurfaceInput,
+} from './surface';
 
 const desktopChrome: NavigatorSurfaceInput = {
   userAgent:
@@ -54,5 +58,11 @@ describe('readSurface', () => {
         userAgentDataMobile: true,
       }),
     ).toBe('computerRequired');
+  });
+
+  it('keeps the gate copy as a literal', () => {
+    expect(COMPUTER_REQUIRED_MESSAGE).toBe(
+      'Not mobile optimized. Please use a computer.',
+    );
   });
 });
