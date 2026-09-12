@@ -5,7 +5,7 @@ description: "Drive the terminalcv browser résumé (Next.js static CRT terminal
 
 # Verify terminalcv
 
-`terminalcv` is a single-page, client-side Next.js App Router site (`output: 'export'`). The user faces one surface: a retro terminal that accepts keyboard commands after a typewriter boot sequence. There is no backend, auth, or database. Unit tests (Vitest) are DOM-free and do **not** replace this skill — UI proof must drive a real browser.
+`terminalcv` is a single-page, client-side Next.js App Router site (`output: 'export'`). On a desktop-class pointer the user faces a retro terminal that accepts keyboard commands after a typewriter boot sequence. On a phone or tablet they see `Please use a computer.` instead. There is no backend, auth, or database. Unit tests (Vitest) are DOM-free and do **not** replace this skill — UI proof must drive a real browser.
 
 ## Launch
 
@@ -67,6 +67,7 @@ Harness: `control-terminalcv` (Playwright-core over Chrome CDP). The app has **n
 | `#prompt` | `>` once booted |
 | `#command-input` | Live command buffer (not a form field) |
 | `#cursor` | Blinking `_` once booted |
+| `#computer-required` | Mobile gate message (`Please use a computer.`) when hover/pointer capabilities are not desktop-class |
 
 Recipe:
 
@@ -131,7 +132,9 @@ After every failed iteration, run cleanup before relaunching so ports and Chrome
 | --- | --- |
 | `control-terminalcv` | `.cursor/skills/verify-terminalcv/helpers/control-terminalcv <subcommand>` |
 
-Subcommands: `launch`, `doctor`, `wait-boot`, `cmd`, `text`, `snapshot`, `screenshot`, `cleanup`.
+Subcommands: `launch`, `doctor`, `wait-boot`, `wait-gate`, `emulate`, `cmd`, `text`, `snapshot`, `screenshot`, `cleanup`.
+
+`emulate --preset mobile|desktop` sets viewport and CDP emulated media (`hover` / `pointer`), then reloads the page. Use `wait-gate` after mobile emulate to assert `#computer-required` is visible and terminal ids are absent.
 
 Dependency: `playwright-core` installed in `helpers/` via that folder's `package.json` (`npm install` there). Uses system Chrome (`VERIFY_CHROME_PATH` or common `/usr/bin/google-chrome*` paths).
 

@@ -41,6 +41,7 @@ const SELECTORS = {
   prompt: '#prompt',
   commandInput: '#command-input',
   cursor: '#cursor',
+  computerRequired: '#computer-required',
 };
 
 function usage(exitCode = 1) {
@@ -48,8 +49,10 @@ function usage(exitCode = 1) {
   control-terminalcv launch [--port <n>] [--repo <path>]
   control-terminalcv doctor [--url <url>]
   control-terminalcv wait-boot [--timeout-ms <n>]
+  control-terminalcv wait-gate [--timeout-ms <n>]
+  control-terminalcv emulate --preset mobile|desktop
   control-terminalcv cmd <command...> [--settle-ms <n>] [--timeout-ms <n>]
-  control-terminalcv text [--sel ascii|instructions|output|prompt|commandInput|cursor]
+  control-terminalcv text [--sel ascii|instructions|output|prompt|commandInput|cursor|computerRequired]
   control-terminalcv snapshot --path <file>
   control-terminalcv screenshot --path <file>
   control-terminalcv cleanup
@@ -408,6 +411,72 @@ async function cmdWaitBoot(argv) {
   process.stdout.write(JSON.stringify({ ok: true, booted: true }) + '\n');
 }
 
+async function waitGate(page, timeoutMs) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const gateCount = await page.locator(SELECTORS.computerRequired).count();
+    const promptCount = await page.locator(SELECTORS.prompt).count();
+    const cursorCount = await page.locator(SELECTORS.cursor).count();
+    if (gateCount === 1 && promptCount === 0 && cursorCount === 0) {
+      const text =
+        (await page.locator(SELECTORS.computerRequired).textContent()) ?? '';
+      if (text === 'Please use a computer.') {
+        return;
+      }
+    }
+    await sleep(100);
+  }
+  throw new Error(`Gate not ready within ${timeoutMs}ms`);
+}
+
+async function cmdWaitGate(argv) {
+  const timeoutMs = Number(argsAfter('--timeout-ms', argv) || 10_000);
+  await withPage(async (page) => {
+    await page.bringToFront();
+    await waitGate(page, timeoutMs);
+  });
+  process.stdout.write(JSON.stringify({ ok: true, gated: true }) + '\n');
+}
+
+const EMULATE_PRESETS = {
+  mobile: {
+    viewport: { width: 390, height: 844 },
+    features: [
+      { name: 'hover', value: 'none' },
+      { name: 'pointer', value: 'coarse' },
+    ],
+  },
+  desktop: {
+    viewport: { width: 1100, height: 900 },
+    features: [
+      { name: 'hover', value: 'hover' },
+      { name: 'pointer', value: 'fine' },
+    ],
+  },
+};
+
+async function cmdEmulate(argv) {
+  const preset = argsAfter('--preset', argv);
+  if (!preset || !EMULATE_PRESETS[preset]) {
+    throw new Error(
+      `Missing or invalid --preset. Use: ${Object.keys(EMULATE_PRESETS).join(', ')}`,
+    );
+  }
+  const { viewport, features } = EMULATE_PRESETS[preset];
+  await withPage(async (page, state) => {
+    const cdp = await page.context().newCDPSession(page);
+    await page.setViewportSize(viewport);
+    await cdp.send('Emulation.setEmulatedMedia', { features });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    if (!page.url().startsWith(state.url)) {
+      await page.goto(state.url, { waitUntil: 'domcontentloaded' });
+    }
+    // Navigation resets emulated media; apply again so matchMedia matches the preset.
+    await cdp.send('Emulation.setEmulatedMedia', { features });
+  });
+  process.stdout.write(JSON.stringify({ ok: true, preset }) + '\n');
+}
+
 async function waitOutputIdle(page, { timeoutMs, settleMs }) {
   const start = Date.now();
   let last = null;
@@ -513,9 +582,13 @@ async function cmdSnapshot(argv) {
     for (const [key, sel] of Object.entries(SELECTORS)) {
       parts[key] = (await page.locator(sel).innerText().catch(() => '')) ?? '';
     }
-    const asciiDisplay = await page.locator(SELECTORS.ascii).evaluate((el) => {
-      return window.getComputedStyle(el).display;
-    });
+    const asciiCount = await page.locator(SELECTORS.ascii).count();
+    const asciiDisplay =
+      asciiCount === 0
+        ? 'absent'
+        : await page.locator(SELECTORS.ascii).evaluate((el) => {
+            return window.getComputedStyle(el).display;
+          });
     return {
       capturedAt: new Date().toISOString(),
       url: state.url,
@@ -548,6 +621,9 @@ async function cmdSnapshot(argv) {
       '',
       '--- cursor ---',
       snap.cursor,
+      '',
+      '--- computer-required ---',
+      snap.computerRequired,
       '',
     ].join('\n') + '\n';
   await writeFile(abs, body);
@@ -652,6 +728,12 @@ async function main() {
       break;
     case 'wait-boot':
       await cmdWaitBoot(rest);
+      break;
+    case 'wait-gate':
+      await cmdWaitGate(rest);
+      break;
+    case 'emulate':
+      await cmdEmulate(rest);
       break;
     case 'cmd':
       await cmdCmd(rest);

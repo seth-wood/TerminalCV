@@ -44,3 +44,4 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [Content documents](./content-documents.md) covers commands `1` / `2` / `3` (resume, projects, about).
 - [Clear screen](./clear.md) covers wiping scrollback and hiding splash art.
 - [External opens](./external-opens.md) covers `download` (PDF) and `github` (profile URL).
+- [Mobile gate](./mobile-gate.md) covers the computer-required message on non-desktop pointer/hover capabilities.
