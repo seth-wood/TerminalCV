@@ -47,55 +47,22 @@ const SELECTORS = {
 const EMULATE_PRESETS = {
   mobile: {
     viewport: { width: 390, height: 844 },
-    userAgent:
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-    platform: 'iPhone',
-    userAgentMetadata: {
-      brands: [{ brand: 'Chromium', version: '120' }],
-      fullVersionList: [{ brand: 'Chromium', version: '120.0.6099.0' }],
-      platform: 'iOS',
-      platformVersion: '17.0.0',
-      architecture: '',
-      model: 'iPhone',
-      mobile: true,
-      bitness: '',
-      wow64: false,
-    },
+    blinkSettings:
+      'primaryHoverType=1,availableHoverTypes=1,primaryPointerType=2,availablePointerTypes=2',
   },
   desktop: {
     viewport: { width: 1100, height: 900 },
-    userAgent:
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    platform: 'Linux',
-    userAgentMetadata: {
-      brands: [{ brand: 'Chromium', version: '120' }],
-      fullVersionList: [{ brand: 'Chromium', version: '120.0.6099.0' }],
-      platform: 'Linux',
-      platformVersion: '',
-      architecture: 'x86',
-      model: '',
-      mobile: false,
-      bitness: '64',
-      wow64: false,
-    },
+    blinkSettings:
+      'primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4',
   },
 };
 
-async function applyUserAgent(page, preset) {
-  const cdp = await page.context().newCDPSession(page);
-  try {
-    await cdp.send('Emulation.setUserAgentOverride', {
-      userAgent: preset.userAgent,
-      platform: preset.platform,
-      userAgentMetadata: preset.userAgentMetadata,
-    });
-  } catch {
-    await cdp.send('Emulation.setUserAgentOverride', {
-      userAgent: preset.userAgent,
-      platform: preset.platform,
-    });
-  }
-  return cdp;
+const GATE_COPY = 'Not mobile optimized. Please use a computer.';
+
+async function locatorText(page, selector) {
+  const loc = page.locator(selector);
+  if ((await loc.count()) === 0) return '';
+  return (await loc.textContent({ timeout: 0 }).catch(() => '')) ?? '';
 }
 
 function usage(exitCode = 1) {
@@ -207,7 +174,6 @@ async function withPage(fn) {
     if (!page.url().startsWith(state.url)) {
       await page.goto(state.url, { waitUntil: 'domcontentloaded' });
     }
-    await restoreEmulation(page, state);
     return await fn(page, state, browser);
   } finally {
     // connectOverCDP close disconnects this client and leaves Chrome running.
@@ -215,18 +181,92 @@ async function withPage(fn) {
   }
 }
 
-async function restoreEmulation(page, state) {
-  const presetName = state.emulatePreset;
-  if (!presetName || !EMULATE_PRESETS[presetName]) return;
-  const preset = EMULATE_PRESETS[presetName];
-  await page.setViewportSize(preset.viewport);
-  await applyUserAgent(page, preset);
-  const wantGate = presetName === 'mobile';
-  const gateCount = await page.locator(SELECTORS.computerRequired).count();
-  if (wantGate !== (gateCount === 1)) {
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await applyUserAgent(page, preset);
+async function killChrome(state) {
+  if (state.chromePid) {
+    try {
+      process.kill(state.chromePid, 'SIGTERM');
+    } catch {
+      /* gone */
+    }
+    await sleep(300);
+    try {
+      process.kill(state.chromePid, 0);
+      process.kill(state.chromePid, 'SIGKILL');
+    } catch {
+      /* gone */
+    }
+    for (let i = 0; i < 20; i++) {
+      try {
+        process.kill(state.chromePid, 0);
+        await sleep(100);
+      } catch {
+        break;
+      }
+    }
   }
+  if (
+    state.chromeUserDataDir &&
+    state.runDir &&
+    state.chromeUserDataDir.startsWith(state.runDir)
+  ) {
+    await rm(state.chromeUserDataDir, { recursive: true, force: true });
+  }
+}
+
+async function launchChrome(state) {
+  const presetName = state.emulatePreset || 'desktop';
+  const preset = EMULATE_PRESETS[presetName];
+  if (!preset) {
+    throw new Error(`Unknown emulate preset: ${presetName}`);
+  }
+  const chromePath = state.chromePath || (await findChrome());
+  const debugPort = await findFreePort();
+  const userDataDir = join(state.runDir, `chrome-profile-${presetName}`);
+  await mkdir(userDataDir, { recursive: true });
+  const chromeLog = join(state.runDir, 'chrome.log');
+  const chromeFd = await import('node:fs').then((fs) =>
+    fs.openSync(chromeLog, 'a'),
+  );
+  const chrome = spawn(
+    chromePath,
+    [
+      `--remote-debugging-port=${debugPort}`,
+      `--user-data-dir=${userDataDir}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-gpu',
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      `--window-size=${preset.viewport.width},${preset.viewport.height}`,
+      `--blink-settings=${preset.blinkSettings}`,
+      state.url,
+    ],
+    {
+      stdio: ['ignore', chromeFd, chromeFd],
+      detached: true,
+      env: process.env,
+    },
+  );
+  chrome.unref();
+
+  const wsUrl = await waitForDebuggerUrl(debugPort, 30_000);
+  const attached = await chromium.connectOverCDP(wsUrl);
+  const ctx = attached.contexts()[0] ?? (await attached.newContext());
+  let page = ctx.pages()[0];
+  if (!page) page = await ctx.newPage();
+  await page.setViewportSize(preset.viewport);
+  if (!page.url().startsWith(state.url)) {
+    await page.goto(state.url, { waitUntil: 'domcontentloaded' });
+  }
+  await attached.close();
+
+  state.chromePath = chromePath;
+  state.browserWSEndpoint = wsUrl;
+  state.chromeDebugPort = debugPort;
+  state.chromePid = chrome.pid;
+  state.chromeLog = chromeLog;
+  state.chromeUserDataDir = userDataDir;
 }
 
 async function cmdLaunch(argv) {
@@ -271,49 +311,6 @@ async function cmdLaunch(argv) {
     throw err;
   }
 
-  const chromePath = await findChrome();
-  // Launch Chrome ourselves with a remote-debugging port so it outlives each
-  // short-lived CLI invocation. Later commands reconnect via CDP.
-  const debugPort = await findFreePort();
-  const userDataDir = join(runDir, 'chrome-profile');
-  await mkdir(userDataDir, { recursive: true });
-  const chromeLog = join(runDir, 'chrome.log');
-  const chromeFd = await import('node:fs').then((fs) =>
-    fs.openSync(chromeLog, 'a'),
-  );
-  const chrome = spawn(
-    chromePath,
-    [
-      `--remote-debugging-port=${debugPort}`,
-      `--user-data-dir=${userDataDir}`,
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-gpu',
-      '--headless=new',
-      '--no-sandbox',
-      '--disable-dev-shm-usage',
-      '--window-size=1100,900',
-      url,
-    ],
-    {
-      stdio: ['ignore', chromeFd, chromeFd],
-      detached: true,
-      env: process.env,
-    },
-  );
-  chrome.unref();
-
-  const wsUrl = await waitForDebuggerUrl(debugPort, 30_000);
-  const attached = await chromium.connectOverCDP(wsUrl);
-  const ctx = attached.contexts()[0] ?? (await attached.newContext());
-  let page = ctx.pages()[0];
-  if (!page) page = await ctx.newPage();
-  if (!page.url().startsWith(url)) {
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-  }
-  // Disconnect this client only; leave Chrome running for later commands.
-  await attached.close();
-
   const state = {
     runId,
     runDir,
@@ -321,14 +318,11 @@ async function cmdLaunch(argv) {
     port,
     url,
     pid: child.pid,
-    chromePath,
-    browserWSEndpoint: wsUrl,
-    chromeDebugPort: debugPort,
-    chromePid: chrome.pid,
     logPath,
-    chromeLog,
     launchedAt: new Date().toISOString(),
+    emulatePreset: 'desktop',
   };
+  await launchChrome(state);
   await writeState(state);
 
   process.stdout.write(
@@ -433,17 +427,9 @@ async function cmdDoctor(argv) {
           report.issues.push(`unexpected title: ${report.title}`);
           report.ok = false;
         }
-        const cursorCount = await page.locator(SELECTORS.cursor).count();
-        const promptCount = await page.locator(SELECTORS.prompt).count();
-        if (cursorCount && promptCount) {
-          const cursor =
-            (await page.locator(SELECTORS.cursor).textContent({ timeout: 0 })) ??
-            '';
-          const prompt =
-            (await page.locator(SELECTORS.prompt).textContent({ timeout: 0 })) ??
-            '';
-          report.booted = cursor.includes('_') && prompt.includes('>');
-        }
+        const cursor = await locatorText(page, SELECTORS.cursor);
+        const prompt = await locatorText(page, SELECTORS.prompt);
+        report.booted = cursor.includes('_') && prompt.includes('>');
       });
     } catch (err) {
       report.issues.push(
@@ -461,30 +447,16 @@ async function waitBoot(page, timeoutMs) {
   const start = Date.now();
   const expected =
     "Enter a command. Type 'help' for additional commands.";
-  const noWait = { timeout: 0 };
   while (Date.now() - start < timeoutMs) {
-    const cursorCount = await page.locator(SELECTORS.cursor).count();
-    const promptCount = await page.locator(SELECTORS.prompt).count();
-    const instructionsCount = await page.locator(SELECTORS.instructions).count();
-    if (cursorCount && promptCount && instructionsCount) {
-      const cursor =
-        (await page.locator(SELECTORS.cursor).textContent(noWait).catch(() => '')) ??
-        '';
-      const instructions =
-        (await page
-          .locator(SELECTORS.instructions)
-          .textContent(noWait)
-          .catch(() => '')) ?? '';
-      const prompt =
-        (await page.locator(SELECTORS.prompt).textContent(noWait).catch(() => '')) ??
-        '';
-      if (
-        cursor.includes('_') &&
-        prompt.includes('>') &&
-        instructions === expected
-      ) {
-        return;
-      }
+    const cursor = await locatorText(page, SELECTORS.cursor);
+    const instructions = await locatorText(page, SELECTORS.instructions);
+    const prompt = await locatorText(page, SELECTORS.prompt);
+    if (
+      cursor.includes('_') &&
+      prompt.includes('>') &&
+      instructions === expected
+    ) {
+      return;
     }
     await sleep(100);
   }
@@ -510,7 +482,7 @@ async function waitGate(page, timeoutMs) {
     if (gateCount === 1 && promptCount === 0 && cursorCount === 0) {
       const text =
         (await page.locator(SELECTORS.computerRequired).textContent()) ?? '';
-      if (text === 'Not mobile optimized. Please use a computer.') {
+      if (text === GATE_COPY) {
         return;
       }
     }
@@ -536,9 +508,10 @@ async function cmdEmulate(argv) {
     );
   }
   const state = await readState();
+  await killChrome(state);
   state.emulatePreset = preset;
+  await launchChrome(state);
   await writeState(state);
-  await withPage(async () => {});
   process.stdout.write(JSON.stringify({ ok: true, preset }) + '\n');
 }
 
@@ -626,12 +599,7 @@ async function cmdText(argv) {
       `Unknown --sel ${selKey}. Use: ${Object.keys(SELECTORS).join(', ')}`,
     );
   }
-  const text = await withPage(async (page) => {
-    if (selKey === 'ascii') {
-      return (await page.locator(selector).innerText()) ?? '';
-    }
-    return (await page.locator(selector).innerText()) ?? '';
-  });
+  const text = await withPage(async (page) => locatorText(page, selector));
   process.stdout.write(text);
   if (!text.endsWith('\n')) process.stdout.write('\n');
 }

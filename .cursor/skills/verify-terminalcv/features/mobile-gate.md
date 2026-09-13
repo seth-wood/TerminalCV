@@ -5,7 +5,7 @@ On a phone or tablet the page shows a short message instead of mounting the term
 ## Sub-features
 
 - `gate-message` shows `Not mobile optimized. Please use a computer.` in `#computer-required` and does not mount the terminal.
-- `desktop-terminal` on a computer user-agent still boots the terminal normally.
+- `desktop-terminal` on a computer (hover plus fine pointer) still boots the terminal normally.
 
 ## How to get to it (user POV)
 
@@ -26,14 +26,14 @@ Preconditions:
 
 **Mobile path (gate replaces terminal):**
 
-- Run `control-terminalcv emulate --preset mobile` (iPhone user-agent, viewport 390×844, reloads).
+- Run `control-terminalcv emulate --preset mobile` (coarse pointer, no hover, viewport 390×844).
 - Run `control-terminalcv wait-gate` — `#computer-required` text is exactly `Not mobile optimized. Please use a computer.`; `#prompt` and `#cursor` counts are 0.
 - Proof: `control-terminalcv text --sel computerRequired` prints `Not mobile optimized. Please use a computer.`; `control-terminalcv snapshot --path .cursor/skills/verify-terminalcv/artifacts/mobile-gate/mobile-snapshot.txt` and `control-terminalcv screenshot --path .cursor/skills/verify-terminalcv/artifacts/mobile-gate/mobile-screen.png`.
 
 ## Gotchas
 
 - `wait-boot` is for the desktop terminal path only. Do not run it after `emulate --preset mobile`. The terminal is not mounted.
-- Detection is device class (user-agent / Client Hints / iPadOS touch), not viewport width. A narrow desktop window still shows the terminal.
-- `emulate` stores a phone or desktop user-agent on the run and reapplies it on every later command. A CDP disconnect drops the override, so the recipe must run `emulate` before `wait-gate` on the same launch.
+- Detection is `(hover: hover) and (pointer: fine)`, not viewport width. A narrow desktop window still shows the terminal.
+- `emulate` relaunches Chrome with `--blink-settings` for that preset. Headless Chrome has no hover unless those flags are set, so a CDP disconnect is not enough. Run `emulate` before `wait-gate` on the same launch.
 - The gate is a full-viewport overlay (`100vw` × `100dvh`, grid-centered). Proof screenshots hide the Next.js portal and capture the viewport, not `fullPage`.
 - To return to the desktop path, run `control-terminalcv emulate --preset desktop` before `wait-boot`.
