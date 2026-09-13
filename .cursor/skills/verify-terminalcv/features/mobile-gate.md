@@ -26,7 +26,7 @@ Preconditions:
 
 **Mobile path (gate replaces terminal):**
 
-- Run `control-terminalcv emulate --preset mobile` (`hover: none`, `pointer: coarse`, viewport 390×844, reloads).
+- Run `control-terminalcv emulate --preset mobile` (coarse pointer, no hover, viewport 390×844).
 - Run `control-terminalcv wait-gate` — `#computer-required` text is exactly `Not mobile optimized. Please use a computer.`; `#prompt` and `#cursor` counts are 0.
 - Proof: `control-terminalcv text --sel computerRequired` prints `Not mobile optimized. Please use a computer.`; `control-terminalcv snapshot --path .cursor/skills/verify-terminalcv/artifacts/mobile-gate/mobile-snapshot.txt` and `control-terminalcv screenshot --path .cursor/skills/verify-terminalcv/artifacts/mobile-gate/mobile-screen.png`.
 
@@ -34,6 +34,6 @@ Preconditions:
 
 - `wait-boot` is for the desktop terminal path only. Do not run it after `emulate --preset mobile`. The terminal is not mounted.
 - Detection is `(hover: hover) and (pointer: fine)`, not viewport width. A narrow desktop window still shows the terminal.
-- `emulate` stores the media preset on the run and reapplies it on every later command. Navigation resets emulated media, so the recipe must run `emulate` before `wait-gate` on the same launch.
+- `emulate` relaunches Chrome with `--blink-settings` for that preset. Headless Chrome has no hover unless those flags are set, so a CDP disconnect is not enough. Run `emulate` before `wait-gate` on the same launch.
 - The gate is a full-viewport overlay (`100vw` × `100dvh`, grid-centered). Proof screenshots hide the Next.js portal and capture the viewport, not `fullPage`.
 - To return to the desktop path, run `control-terminalcv emulate --preset desktop` before `wait-boot`.

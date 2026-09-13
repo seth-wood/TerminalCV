@@ -47,27 +47,17 @@ const SELECTORS = {
 const EMULATE_PRESETS = {
   mobile: {
     viewport: { width: 390, height: 844 },
-    features: [
-      { name: 'hover', value: 'none' },
-      { name: 'pointer', value: 'coarse' },
-    ],
+    blinkSettings:
+      'primaryHoverType=1,availableHoverTypes=1,primaryPointerType=2,availablePointerTypes=2',
   },
   desktop: {
     viewport: { width: 1100, height: 900 },
-    features: [
-      { name: 'hover', value: 'hover' },
-      { name: 'pointer', value: 'fine' },
-    ],
+    blinkSettings:
+      'primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4',
   },
 };
 
 const GATE_COPY = 'Not mobile optimized. Please use a computer.';
-
-async function applyEmulatedMedia(page, preset) {
-  await page.setViewportSize(preset.viewport);
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Emulation.setEmulatedMedia', { features: preset.features });
-}
 
 async function locatorText(page, selector) {
   const loc = page.locator(selector);
@@ -184,7 +174,6 @@ async function withPage(fn) {
     if (!page.url().startsWith(state.url)) {
       await page.goto(state.url, { waitUntil: 'domcontentloaded' });
     }
-    await restoreEmulation(page, state);
     return await fn(page, state, browser);
   } finally {
     // connectOverCDP close disconnects this client and leaves Chrome running.
@@ -192,17 +181,92 @@ async function withPage(fn) {
   }
 }
 
-async function restoreEmulation(page, state) {
+async function killChrome(state) {
+  if (state.chromePid) {
+    try {
+      process.kill(state.chromePid, 'SIGTERM');
+    } catch {
+      /* gone */
+    }
+    await sleep(300);
+    try {
+      process.kill(state.chromePid, 0);
+      process.kill(state.chromePid, 'SIGKILL');
+    } catch {
+      /* gone */
+    }
+    for (let i = 0; i < 20; i++) {
+      try {
+        process.kill(state.chromePid, 0);
+        await sleep(100);
+      } catch {
+        break;
+      }
+    }
+  }
+  if (
+    state.chromeUserDataDir &&
+    state.runDir &&
+    state.chromeUserDataDir.startsWith(state.runDir)
+  ) {
+    await rm(state.chromeUserDataDir, { recursive: true, force: true });
+  }
+}
+
+async function launchChrome(state) {
   const presetName = state.emulatePreset || 'desktop';
   const preset = EMULATE_PRESETS[presetName];
-  if (!preset) return;
-  await applyEmulatedMedia(page, preset);
-  const wantGate = presetName === 'mobile';
-  const gateCount = await page.locator(SELECTORS.computerRequired).count();
-  if (wantGate !== (gateCount === 1)) {
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await applyEmulatedMedia(page, preset);
+  if (!preset) {
+    throw new Error(`Unknown emulate preset: ${presetName}`);
   }
+  const chromePath = state.chromePath || (await findChrome());
+  const debugPort = await findFreePort();
+  const userDataDir = join(state.runDir, `chrome-profile-${presetName}`);
+  await mkdir(userDataDir, { recursive: true });
+  const chromeLog = join(state.runDir, 'chrome.log');
+  const chromeFd = await import('node:fs').then((fs) =>
+    fs.openSync(chromeLog, 'a'),
+  );
+  const chrome = spawn(
+    chromePath,
+    [
+      `--remote-debugging-port=${debugPort}`,
+      `--user-data-dir=${userDataDir}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-gpu',
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-dev-shm-usage',
+      `--window-size=${preset.viewport.width},${preset.viewport.height}`,
+      `--blink-settings=${preset.blinkSettings}`,
+      state.url,
+    ],
+    {
+      stdio: ['ignore', chromeFd, chromeFd],
+      detached: true,
+      env: process.env,
+    },
+  );
+  chrome.unref();
+
+  const wsUrl = await waitForDebuggerUrl(debugPort, 30_000);
+  const attached = await chromium.connectOverCDP(wsUrl);
+  const ctx = attached.contexts()[0] ?? (await attached.newContext());
+  let page = ctx.pages()[0];
+  if (!page) page = await ctx.newPage();
+  await page.setViewportSize(preset.viewport);
+  if (!page.url().startsWith(state.url)) {
+    await page.goto(state.url, { waitUntil: 'domcontentloaded' });
+  }
+  await attached.close();
+
+  state.chromePath = chromePath;
+  state.browserWSEndpoint = wsUrl;
+  state.chromeDebugPort = debugPort;
+  state.chromePid = chrome.pid;
+  state.chromeLog = chromeLog;
+  state.chromeUserDataDir = userDataDir;
 }
 
 async function cmdLaunch(argv) {
@@ -247,49 +311,6 @@ async function cmdLaunch(argv) {
     throw err;
   }
 
-  const chromePath = await findChrome();
-  // Launch Chrome ourselves with a remote-debugging port so it outlives each
-  // short-lived CLI invocation. Later commands reconnect via CDP.
-  const debugPort = await findFreePort();
-  const userDataDir = join(runDir, 'chrome-profile');
-  await mkdir(userDataDir, { recursive: true });
-  const chromeLog = join(runDir, 'chrome.log');
-  const chromeFd = await import('node:fs').then((fs) =>
-    fs.openSync(chromeLog, 'a'),
-  );
-  const chrome = spawn(
-    chromePath,
-    [
-      `--remote-debugging-port=${debugPort}`,
-      `--user-data-dir=${userDataDir}`,
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-gpu',
-      '--headless=new',
-      '--no-sandbox',
-      '--disable-dev-shm-usage',
-      '--window-size=1100,900',
-      url,
-    ],
-    {
-      stdio: ['ignore', chromeFd, chromeFd],
-      detached: true,
-      env: process.env,
-    },
-  );
-  chrome.unref();
-
-  const wsUrl = await waitForDebuggerUrl(debugPort, 30_000);
-  const attached = await chromium.connectOverCDP(wsUrl);
-  const ctx = attached.contexts()[0] ?? (await attached.newContext());
-  let page = ctx.pages()[0];
-  if (!page) page = await ctx.newPage();
-  if (!page.url().startsWith(url)) {
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
-  }
-  // Disconnect this client only; leave Chrome running for later commands.
-  await attached.close();
-
   const state = {
     runId,
     runDir,
@@ -297,15 +318,11 @@ async function cmdLaunch(argv) {
     port,
     url,
     pid: child.pid,
-    chromePath,
-    browserWSEndpoint: wsUrl,
-    chromeDebugPort: debugPort,
-    chromePid: chrome.pid,
     logPath,
-    chromeLog,
     launchedAt: new Date().toISOString(),
     emulatePreset: 'desktop',
   };
+  await launchChrome(state);
   await writeState(state);
 
   process.stdout.write(
@@ -491,9 +508,10 @@ async function cmdEmulate(argv) {
     );
   }
   const state = await readState();
+  await killChrome(state);
   state.emulatePreset = preset;
+  await launchChrome(state);
   await writeState(state);
-  await withPage(async () => {});
   process.stdout.write(JSON.stringify({ ok: true, preset }) + '\n');
 }
 
