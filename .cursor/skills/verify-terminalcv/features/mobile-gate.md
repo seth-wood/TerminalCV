@@ -35,5 +35,5 @@ Preconditions:
 - `wait-boot` is for the desktop terminal path only. Do not run it after `emulate --preset mobile`. The terminal is not mounted.
 - Detection is device class (user-agent / Client Hints / iPadOS touch), not viewport width. A narrow desktop window still shows the terminal.
 - `emulate` stores a phone or desktop user-agent on the run and reapplies it on every later command. A CDP disconnect drops the override, so the recipe must run `emulate` before `wait-gate` on the same launch.
-- The gate copy is centered in the viewport (`#computer-required` is `position: fixed; inset: 0` with flex centering). Do not treat a top-left screenshot as a pass.
+- The gate is a full-viewport overlay (`100vw` × `100dvh`, grid-centered). Proof screenshots hide the Next.js portal and capture the viewport, not `fullPage`.
 - To return to the desktop path, run `control-terminalcv emulate --preset desktop` before `wait-boot`.

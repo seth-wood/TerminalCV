@@ -695,13 +695,20 @@ async function cmdSnapshot(argv) {
   process.stdout.write(JSON.stringify({ ok: true, path: abs }) + '\n');
 }
 
+async function hideDevUi(page) {
+  await page.addStyleTag({
+    content: 'nextjs-portal { display: none !important; }',
+  });
+}
+
 async function cmdScreenshot(argv) {
   const path = argsAfter('--path', argv);
   if (!path) usage(1);
   const abs = resolve(path);
   await mkdir(dirname(abs), { recursive: true });
   await withPage(async (page) => {
-    await page.screenshot({ path: abs, fullPage: true });
+    await hideDevUi(page);
+    await page.screenshot({ path: abs, fullPage: false });
   });
   process.stdout.write(JSON.stringify({ ok: true, path: abs }) + '\n');
 }

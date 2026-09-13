@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 
 import {
   COMPUTER_REQUIRED_MESSAGE,
@@ -29,6 +29,13 @@ export default function ComputerGate({ splash }: { splash: string }) {
     getSnapshot,
     getServerSnapshot,
   );
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const gated = surface === 'computerRequired';
+    root.classList.toggle('computer-required-open', gated);
+    return () => root.classList.remove('computer-required-open');
+  }, [surface]);
 
   switch (surface) {
     case 'terminal':
