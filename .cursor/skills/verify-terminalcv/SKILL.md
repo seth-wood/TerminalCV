@@ -134,7 +134,7 @@ After every failed iteration, run cleanup before relaunching so ports and Chrome
 
 Subcommands: `launch`, `doctor`, `wait-boot`, `wait-gate`, `emulate`, `cmd`, `text`, `snapshot`, `screenshot`, `cleanup`.
 
-`emulate --preset mobile|desktop` sets viewport and a phone or desktop user-agent, then reloads. Use `wait-gate` after mobile emulate to assert `#computer-required` is visible and terminal ids are absent.
+`emulate --preset mobile|desktop` sets viewport and `hover`/`pointer` media features, then reloads. Use `wait-gate` after mobile emulate to assert `#computer-required` is visible and terminal ids are absent. Launch defaults to the desktop media preset so headless Chrome still boots the CRT.
 
 Dependency: `playwright-core` installed in `helpers/` via that folder's `package.json` (`npm install` there). Uses system Chrome (`VERIFY_CHROME_PATH` or common `/usr/bin/google-chrome*` paths).
 

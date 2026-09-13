@@ -47,55 +47,32 @@ const SELECTORS = {
 const EMULATE_PRESETS = {
   mobile: {
     viewport: { width: 390, height: 844 },
-    userAgent:
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-    platform: 'iPhone',
-    userAgentMetadata: {
-      brands: [{ brand: 'Chromium', version: '120' }],
-      fullVersionList: [{ brand: 'Chromium', version: '120.0.6099.0' }],
-      platform: 'iOS',
-      platformVersion: '17.0.0',
-      architecture: '',
-      model: 'iPhone',
-      mobile: true,
-      bitness: '',
-      wow64: false,
-    },
+    features: [
+      { name: 'hover', value: 'none' },
+      { name: 'pointer', value: 'coarse' },
+    ],
   },
   desktop: {
     viewport: { width: 1100, height: 900 },
-    userAgent:
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    platform: 'Linux',
-    userAgentMetadata: {
-      brands: [{ brand: 'Chromium', version: '120' }],
-      fullVersionList: [{ brand: 'Chromium', version: '120.0.6099.0' }],
-      platform: 'Linux',
-      platformVersion: '',
-      architecture: 'x86',
-      model: '',
-      mobile: false,
-      bitness: '64',
-      wow64: false,
-    },
+    features: [
+      { name: 'hover', value: 'hover' },
+      { name: 'pointer', value: 'fine' },
+    ],
   },
 };
 
-async function applyUserAgent(page, preset) {
+const GATE_COPY = 'Not mobile optimized. Please use a computer.';
+
+async function applyEmulatedMedia(page, preset) {
+  await page.setViewportSize(preset.viewport);
   const cdp = await page.context().newCDPSession(page);
-  try {
-    await cdp.send('Emulation.setUserAgentOverride', {
-      userAgent: preset.userAgent,
-      platform: preset.platform,
-      userAgentMetadata: preset.userAgentMetadata,
-    });
-  } catch {
-    await cdp.send('Emulation.setUserAgentOverride', {
-      userAgent: preset.userAgent,
-      platform: preset.platform,
-    });
-  }
-  return cdp;
+  await cdp.send('Emulation.setEmulatedMedia', { features: preset.features });
+}
+
+async function locatorText(page, selector) {
+  const loc = page.locator(selector);
+  if ((await loc.count()) === 0) return '';
+  return (await loc.textContent({ timeout: 0 }).catch(() => '')) ?? '';
 }
 
 function usage(exitCode = 1) {
@@ -216,16 +193,15 @@ async function withPage(fn) {
 }
 
 async function restoreEmulation(page, state) {
-  const presetName = state.emulatePreset;
-  if (!presetName || !EMULATE_PRESETS[presetName]) return;
+  const presetName = state.emulatePreset || 'desktop';
   const preset = EMULATE_PRESETS[presetName];
-  await page.setViewportSize(preset.viewport);
-  await applyUserAgent(page, preset);
+  if (!preset) return;
+  await applyEmulatedMedia(page, preset);
   const wantGate = presetName === 'mobile';
   const gateCount = await page.locator(SELECTORS.computerRequired).count();
   if (wantGate !== (gateCount === 1)) {
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await applyUserAgent(page, preset);
+    await applyEmulatedMedia(page, preset);
   }
 }
 
@@ -328,6 +304,7 @@ async function cmdLaunch(argv) {
     logPath,
     chromeLog,
     launchedAt: new Date().toISOString(),
+    emulatePreset: 'desktop',
   };
   await writeState(state);
 
@@ -433,17 +410,9 @@ async function cmdDoctor(argv) {
           report.issues.push(`unexpected title: ${report.title}`);
           report.ok = false;
         }
-        const cursorCount = await page.locator(SELECTORS.cursor).count();
-        const promptCount = await page.locator(SELECTORS.prompt).count();
-        if (cursorCount && promptCount) {
-          const cursor =
-            (await page.locator(SELECTORS.cursor).textContent({ timeout: 0 })) ??
-            '';
-          const prompt =
-            (await page.locator(SELECTORS.prompt).textContent({ timeout: 0 })) ??
-            '';
-          report.booted = cursor.includes('_') && prompt.includes('>');
-        }
+        const cursor = await locatorText(page, SELECTORS.cursor);
+        const prompt = await locatorText(page, SELECTORS.prompt);
+        report.booted = cursor.includes('_') && prompt.includes('>');
       });
     } catch (err) {
       report.issues.push(
@@ -461,30 +430,16 @@ async function waitBoot(page, timeoutMs) {
   const start = Date.now();
   const expected =
     "Enter a command. Type 'help' for additional commands.";
-  const noWait = { timeout: 0 };
   while (Date.now() - start < timeoutMs) {
-    const cursorCount = await page.locator(SELECTORS.cursor).count();
-    const promptCount = await page.locator(SELECTORS.prompt).count();
-    const instructionsCount = await page.locator(SELECTORS.instructions).count();
-    if (cursorCount && promptCount && instructionsCount) {
-      const cursor =
-        (await page.locator(SELECTORS.cursor).textContent(noWait).catch(() => '')) ??
-        '';
-      const instructions =
-        (await page
-          .locator(SELECTORS.instructions)
-          .textContent(noWait)
-          .catch(() => '')) ?? '';
-      const prompt =
-        (await page.locator(SELECTORS.prompt).textContent(noWait).catch(() => '')) ??
-        '';
-      if (
-        cursor.includes('_') &&
-        prompt.includes('>') &&
-        instructions === expected
-      ) {
-        return;
-      }
+    const cursor = await locatorText(page, SELECTORS.cursor);
+    const instructions = await locatorText(page, SELECTORS.instructions);
+    const prompt = await locatorText(page, SELECTORS.prompt);
+    if (
+      cursor.includes('_') &&
+      prompt.includes('>') &&
+      instructions === expected
+    ) {
+      return;
     }
     await sleep(100);
   }
@@ -510,7 +465,7 @@ async function waitGate(page, timeoutMs) {
     if (gateCount === 1 && promptCount === 0 && cursorCount === 0) {
       const text =
         (await page.locator(SELECTORS.computerRequired).textContent()) ?? '';
-      if (text === 'Not mobile optimized. Please use a computer.') {
+      if (text === GATE_COPY) {
         return;
       }
     }
@@ -626,12 +581,7 @@ async function cmdText(argv) {
       `Unknown --sel ${selKey}. Use: ${Object.keys(SELECTORS).join(', ')}`,
     );
   }
-  const text = await withPage(async (page) => {
-    if (selKey === 'ascii') {
-      return (await page.locator(selector).innerText()) ?? '';
-    }
-    return (await page.locator(selector).innerText()) ?? '';
-  });
+  const text = await withPage(async (page) => locatorText(page, selector));
   process.stdout.write(text);
   if (!text.endsWith('\n')) process.stdout.write('\n');
 }
