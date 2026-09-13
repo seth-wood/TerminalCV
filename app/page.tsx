@@ -1,6 +1,6 @@
-import Terminal from '@/components/Terminal';
+import ComputerGate from '@/components/ComputerGate';
 import { splash } from '@/src/content';
 
 export default function Page() {
-  return <Terminal splash={splash} />;
+  return <ComputerGate splash={splash} />;
 }
