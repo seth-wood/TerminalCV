@@ -3,35 +3,20 @@ export type Surface = 'terminal' | 'computerRequired';
 export const COMPUTER_REQUIRED_MESSAGE =
   'Not mobile optimized. Please use a computer.';
 
-export type NavigatorSurfaceInput = {
-  readonly userAgent: string;
-  readonly maxTouchPoints: number;
-  readonly userAgentDataMobile: boolean | undefined;
-};
+const TERMINAL_QUERY = '(hover: hover) and (pointer: fine)';
 
-const MOBILE_UA =
-  /Mobi|iPhone|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i;
-
-export function readSurface(input: NavigatorSurfaceInput): Surface {
-  if (input.userAgentDataMobile === true) return 'computerRequired';
-  if (/iPad/i.test(input.userAgent)) return 'computerRequired';
-  if (/Macintosh/i.test(input.userAgent) && input.maxTouchPoints > 1) {
-    return 'computerRequired';
-  }
-  if (MOBILE_UA.test(input.userAgent)) return 'computerRequired';
-  return 'terminal';
+export function readSurface(
+  matchMedia: (query: string) => MediaQueryList,
+): Surface {
+  return matchMedia(TERMINAL_QUERY).matches ? 'terminal' : 'computerRequired';
 }
 
-export function readNavigatorSurfaceInput(
-  nav: Navigator,
-): NavigatorSurfaceInput {
-  const uaData = 'userAgentData' in nav ? nav.userAgentData : undefined;
-  return {
-    userAgent: nav.userAgent,
-    maxTouchPoints: nav.maxTouchPoints,
-    userAgentDataMobile:
-      uaData && typeof uaData === 'object' && 'mobile' in uaData
-        ? Boolean(uaData.mobile)
-        : undefined,
-  };
+export function subscribeSurface(
+  matchMedia: (query: string) => MediaQueryList,
+  onChange: (surface: Surface) => void,
+): () => void {
+  const mql = matchMedia(TERMINAL_QUERY);
+  const handler = () => onChange(readSurface(matchMedia));
+  mql.addEventListener('change', handler);
+  return () => mql.removeEventListener('change', handler);
 }
