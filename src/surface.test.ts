@@ -6,29 +6,22 @@ function fakeMatchMedia(initialMatches: boolean) {
   let matches = initialMatches;
   const listeners = new Set<EventListener>();
   const matchMedia = (query: string) => {
-    void query;
+    if (query !== '(hover: hover) and (pointer: fine)') {
+      throw new Error(`unexpected media query: ${query}`);
+    }
     return {
       get matches() {
         return matches;
       },
-      media: '',
-      onchange: null,
-      addEventListener: (
-        _: string,
-        handler: EventListenerOrEventListenerObject,
-      ) => {
-        if (typeof handler === 'function') listeners.add(handler);
+      addEventListener(type: 'change', handler: EventListener) {
+        if (type !== 'change') return;
+        listeners.add(handler);
       },
-      removeEventListener: (
-        _: string,
-        handler: EventListenerOrEventListenerObject,
-      ) => {
-        if (typeof handler === 'function') listeners.delete(handler);
+      removeEventListener(type: 'change', handler: EventListener) {
+        if (type !== 'change') return;
+        listeners.delete(handler);
       },
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => true,
-    } as MediaQueryList;
+    };
   };
   return {
     matchMedia,
@@ -44,9 +37,7 @@ function fakeMatchMedia(initialMatches: boolean) {
 
 describe('readSurface', () => {
   it('asks matchMedia for hover and fine pointer', () => {
-    const matchMedia = vi.fn(
-      () => ({ matches: true }) as MediaQueryList,
-    );
+    const matchMedia = vi.fn(() => ({ matches: true }));
     expect(readSurface(matchMedia)).toBe('terminal');
     expect(matchMedia).toHaveBeenCalledWith(
       '(hover: hover) and (pointer: fine)',

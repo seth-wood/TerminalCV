@@ -5,14 +5,21 @@ export const COMPUTER_REQUIRED_MESSAGE =
 
 const TERMINAL_QUERY = '(hover: hover) and (pointer: fine)';
 
+type MediaMatches = { readonly matches: boolean };
+
+type MediaQueryHandle = MediaMatches & {
+  addEventListener(type: 'change', listener: EventListener): void;
+  removeEventListener(type: 'change', listener: EventListener): void;
+};
+
 export function readSurface(
-  matchMedia: (query: string) => MediaQueryList,
+  matchMedia: (query: string) => MediaMatches,
 ): Surface {
   return matchMedia(TERMINAL_QUERY).matches ? 'terminal' : 'computerRequired';
 }
 
 export function subscribeSurface(
-  matchMedia: (query: string) => MediaQueryList,
+  matchMedia: (query: string) => MediaQueryHandle,
   onChange: (surface: Surface) => void,
 ): () => void {
   const mql = matchMedia(TERMINAL_QUERY);
